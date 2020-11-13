@@ -1,0 +1,53 @@
+info: [Thu Oct 08 2020 17:40:14 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":10000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "599a3689-33b7-4636-ad03-2d88034c541b"
+  }
+], got 1 messages
+error: [Thu Oct 08 2020 17:40:14 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js (line:62) - Error when pulling queue https://sqs.ap-southeast-1.amazonaws.com/341994046373/dev_playroom. Error "ReferenceError: Observable is not defined\n    at processMessage (/home/albert/Kerjaan/development/test-metric/index.js:51:19)\n    at tryCatcher (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/util.js:16:23)\n    at Object.gotValue (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/reduce.js:166:18)\n    at Object.gotAccum (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/reduce.js:155:25)\n    at Object.tryCatcher (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/util.js:16:23)\n    at Promise._settlePromiseFromHandler (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/promise.js:547:31)\n    at Promise._settlePromise (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/promise.js:604:18)\n    at Promise._settlePromiseCtx (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/promise.js:641:10)\n    at _drainQueueStep (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/async.js:97:12)\n    at _drainQueue (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/async.js:86:9)\n    at Async._drainQueues (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/async.js:102:5)\n    at Immediate.Async.drainQueues [as _onImmediate] (/home/albert/Kerjaan/development/test-metric/node_modules/bluebird/js/release/async.js:15:14)\n    at processImmediate (internal/timers.js:456:21)\n    at process.topLevelDomainCallback (domain.js:137:15)"
+error: [Thu Oct 08 2020 17:40:14 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js (line:79) - Error while running runner.while loop "TypeError: delayer.reset is not a function\n    at task (/home/albert/Kerjaan/development/test-metric/queue-poller.js:69:13)\n    at runNextTicks (internal/process/task_queues.js:62:5)\n    at processImmediate (internal/timers.js:429:9)\n    at process.topLevelDomainCallback (domain.js:137:15)"
+info: [Thu Oct 08 2020 17:42:14 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":10000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "5149680c-3027-4e21-ad2a-164a2af765ca"
+  }
+], got 1 messages
+error: [Thu Oct 08 2020 17:42:14 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js (line:79) - Error while running runner.while loop "TypeError: delayer.reset is not a function\n    at task (/home/albert/Kerjaan/development/test-metric/queue-poller.js:69:13)\n    at runNextTicks (internal/process/task_queues.js:62:5)\n    at processImmediate (internal/timers.js:429:9)\n    at process.topLevelDomainCallback (domain.js:137:15)"
+info: [Thu Oct 08 2020 17:43:05 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":10000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "3d8b99f5-a548-4562-a99b-a717e0487256"
+  }
+], got 1 messages
+error: [Thu Oct 08 2020 17:43:05 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js (line:79) - Error while running runner.while loop "TypeError: delayer.reset is not a function\n    at task (/home/albert/Kerjaan/development/test-metric/queue-poller.js:69:13)\n    at processTicksAndRejections (internal/process/task_queues.js:97:5)\n    at runNextTicks (internal/process/task_queues.js:66:3)\n    at processImmediate (internal/timers.js:429:9)\n    at process.topLevelDomainCallback (domain.js:137:15)"
+info: [Thu Oct 08 2020 17:44:59 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":10000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "4ce468ca-7aee-4340-a3fd-3f059acf3586"
+  }
+], got 1 messages
+error: [Thu Oct 08 2020 17:44:59 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js (line:79) - Error while running runner.while loop "ReferenceError: Bluebird is not defined\n    at Object.delay (/home/albert/Kerjaan/development/test-metric/index.js:68:9)\n    at task (/home/albert/Kerjaan/development/test-metric/queue-poller.js:71:20)\n    at processTicksAndRejections (internal/process/task_queues.js:97:5)\n    at runNextTicks (internal/process/task_queues.js:66:3)\n    at processImmediate (internal/timers.js:429:9)\n    at process.topLevelDomainCallback (domain.js:137:15)"
+info: [Thu Oct 08 2020 17:45:50 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":50000,\"partner\":\"BLIBLI\",\"product\":\"BAR\"}",
+    "MessageId": "3437d55a-495c-4e9d-8453-fd93963909c7"
+  }
+], got 1 messages
+info: [Thu Oct 08 2020 17:45:58 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":50000,\"partner\":\"BLIBLI\",\"product\":\"BAR\"}",
+    "MessageId": "3fab38ff-d3e6-44a1-8b58-53740c00e37d"
+  }
+], got 1 messages
+info: [Thu Oct 08 2020 17:46:12 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":30000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "ee8d5d46-59f9-4a57-8ac0-c7c4b8f16356"
+  }
+], got 1 messages
+info: [Thu Oct 08 2020 18:19:17 GMT+0700] albert-ThinkPad-E450 - /home/albert/Kerjaan/development/test-metric/queue-poller.js - Response after polling [
+  {
+    "Body": "{\"amount\":10000,\"partner\":\"BLIBLI\",\"product\":\"FOO\"}",
+    "MessageId": "5149680c-3027-4e21-ad2a-164a2af765ca"
+  }
+], got 1 messages
