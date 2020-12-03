@@ -1,2 +1,10 @@
 .idea
+node_modules
+logs
+
+.env
 package-lock.json
+
+build
+coverage
+.nyc_output
