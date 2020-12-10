@@ -31,50 +31,19 @@ class Orchestrator {
   /**
    * Array of queues.
    */
-  private readonly queues: Array<Queue>;
+  readonly queues: Array<Queue>;
 
   /**
    * Logger to print to console.
    */
-  private readonly logger: Logger;
+  readonly logger: Logger;
 
   /**
    * Credentials to initiate each queue.
    */
-  private readonly credential: {
+  readonly credential: {
     [key in keyof typeof QueueService]: GooglePubSubConfig|AWSQueueConfig
   };
-
-  /**
-   * Get queue instance.
-   *
-   * @param {any} specification
-   *
-   * @return {AWSQueue|GooglePubSub|UnsupportedQueueServiceError}
-   */
-  private getQueue(specification: any): GooglePubSub|AWSQueue {
-    const defaultConfig = {
-      ...this.credential[specification.service],
-      topicName: specification.topic,
-      metricConfigs: specification.metrics,
-      pollConfig: {
-        consumerCount: specification.consumerCount,
-        concurrency: specification.concurrency
-      },
-      logger: this.logger
-    };
-
-    if (specification.service === QueueService.AWS) {
-      return new AWSQueue(defaultConfig);
-    } else if (specification.service === QueueService.GooglePubSub) {
-      return new GooglePubSub({
-        ...defaultConfig,
-        subscriptionName: specification.subscription
-      });
-    } else {
-      throw new UnsupportedQueueServiceError(`Queue service ${specification.service} is not supported.`);
-    }
-  }
 
   /**
    * Get all file paths recursively from a directory path.
@@ -83,7 +52,7 @@ class Orchestrator {
    *
    * @return {Array<string>}
    */
-  private static async getAllFilePaths(directoryPath: string): Promise<Array<string>> {
+  static async getAllFilePaths(directoryPath: string): Promise<Array<string>> {
     const filePaths = [];
     const fileNames = await fs.readdir(directoryPath);
 
@@ -108,9 +77,13 @@ class Orchestrator {
    *
    * @param {RegisterConfig} config
    *
-   * @return {Promise<Array<object>>}
+   * @return {Promise<Array<{
+   *   [key: string]: any
+   * }>>}
    */
-  private static async getAllSpecificationsFromPaths(config: RegisterConfig): Promise<Array<object>> {
+  static async getAllSpecificationsFromPaths(config: RegisterConfig): Promise<Array<{
+    [key: string]: any
+  }>> {
     const directoryPaths = _.defaultTo(config.directoryPaths, []);
     const filePaths = _.defaultTo(config.filePaths, []);
 
@@ -136,9 +109,13 @@ class Orchestrator {
    *
    * @param {any} specification
    *
-   * @return {object} - the validation message
+   * @return {
+   *   [key: string]: any
+   * } - the validation message
    */
-  private static validateSpecification(specification: any): object {
+  static validateSpecification(specification: any): {
+    [key: string]: any
+  } {
     const firstLayerValidation = satpam.validate(FIRST_LAYER_SPECIFICATION_VALIDATION_RULE, specification);
 
     const metricValidationMessages = _.map(_.get(specification, 'metrics'), (metric) => {
@@ -167,7 +144,9 @@ class Orchestrator {
    *
    * @return {Array<string>}
    */
-  private static extractServiceNamesFromSpecifications(specifications: Array<object>): Array<string> {
+  static extractServiceNamesFromSpecifications(specifications: Array<{
+    [key: string]: any
+  }>): Array<string> {
     return _.chain(specifications)
       .map((specification) => _.get(specification, 'service'))
       .compact()
@@ -184,13 +163,45 @@ class Orchestrator {
   }
 
   /**
+   * Get queue instance.
+   *
+   * @param {any} specification
+   *
+   * @return {AWSQueue|GooglePubSub|UnsupportedQueueServiceError}
+   */
+  getQueue(specification: any): GooglePubSub|AWSQueue {
+    const defaultConfig = {
+      ...this.credential[specification.service],
+      subscriptionName: specification.subscription,
+      metricConfigs: specification.metrics,
+      pollConfig: {
+        consumerCount: specification.consumerCount,
+        concurrency: specification.concurrency
+      },
+      logger: this.logger
+    };
+
+    if (specification.service === QueueService.AWS) {
+      return new AWSQueue(defaultConfig);
+    } else if (specification.service === QueueService.GooglePubSub) {
+      return new GooglePubSub(defaultConfig);
+    } else {
+      throw new UnsupportedQueueServiceError(`Queue service ${specification.service} is not supported.`);
+    }
+  }
+
+  /**
    * Validate credential passed to include credential for service name specified in serviceNames.
    *
    * @param {Array<string>} serviceNames
    *
-   * @return {object} - the validation message
+   * @return {
+   *   [key: string]: any
+   * } - the validation message
    */
-  private validateCredential(serviceNames: Array<string>): object {
+  validateCredential(serviceNames: Array<string>): {
+    [key: string]: any
+  } {
     const validationRule = _.reduce(serviceNames, (acc, serviceName) => {
       return {
         ...acc,
@@ -206,7 +217,7 @@ class Orchestrator {
    *
    * @param {any} specification
    */
-  private registerQueue(specification: any): void {
+  registerQueue(specification: any): void {
     const queue = this.getQueue(specification);
 
     this.queues.push(queue);
@@ -218,7 +229,8 @@ class Orchestrator {
    */
   async startQueues(): Promise<void> {
     return Bluebird.map(this.queues, (queue) => {
-      return Bluebird.resolve(queue.poll())
+      return Bluebird.resolve()
+        .then(() => queue.poll())
         .catch((error) => {
           this.logger.error(`Error when polling ${queue.queueService} queue. Poll config: ${JSON.stringify(queue.pollConfig)}. Error: ${error.message || JSON.stringify(error.stack)}`);
 

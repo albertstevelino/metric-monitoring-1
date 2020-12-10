@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 class Logger {
-  private logger: any;
+  logger: any;
 
   constructor(logger: any) {
     this.logger = _.defaultTo(logger, console);

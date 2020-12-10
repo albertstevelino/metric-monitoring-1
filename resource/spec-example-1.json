@@ -1,6 +1,5 @@
 {
   "service": "GOOGLE_PUB_SUB",
-  "topic": "dev_playroom",
   "subscription": "dev_playroom~~event.received.test",
   "consumerCount": 5,
   "concurrency": 4,

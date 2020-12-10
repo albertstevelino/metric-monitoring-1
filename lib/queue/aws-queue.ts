@@ -26,28 +26,30 @@ class AWSQueue extends Queue {
   /**
    * Queue client.
    */
-  private client: AWS.SQS;
+  client: AWS.SQS;
 
   /**
    * Queue URL.
    */
-  private queueUrl: string;
+  queueUrl: string;
 
   /**
    * Array of statuses that represents whether
    * each consumer is polling or not.
    */
-  private pollingStatuses: Array<boolean>;
+  pollingStatuses: Array<boolean>;
 
   /**
    * Get default poll config.
    *
    * @return {{
    *   delayer: Delayer,
-   *   additionalConfig: object
+   *   additionalConfig: {
+   *     [key: string]: any
+   *   }
    * }}
    */
-  private static getDefaultPollConfig(): {
+  static getDefaultPollConfig(): {
     delayer: Delayer,
     additionalConfig: {
       [key: string]: any
@@ -77,7 +79,7 @@ class AWSQueue extends Queue {
       logger: config.logger
     });
 
-    this.queueUrl = url.resolve(config.queuePrefixUrl, config.topicName);
+    this.queueUrl = url.resolve(config.queuePrefixUrl, config.subscriptionName);
     this.pollingStatuses = [];
 
     this.client = new AWS.SQS({
@@ -99,7 +101,7 @@ class AWSQueue extends Queue {
    *
    * @return {Function} - the task
    */
-  private createTask(config: PollConfig, consumerIndex: number): Function {
+  createTask(config: PollConfig, consumerIndex: number): Function {
     return async () => {
       const response = await this.client.receiveMessage({
         ...config.additionalConfig,
@@ -161,10 +163,7 @@ class AWSQueue extends Queue {
     const consumerCount = _.defaultTo(config.consumerCount, 1);
 
     if (this.pollingStatuses.length > 0) {
-      for (let i = 0; i < this.pollingStatuses.length; i++) {
-        // Undefined polling status will terminate the consumer loop and stop the consumer
-        this.pollingStatuses.shift();
-      }
+      this.close();
 
       // Wait for all of existing polls terminated
       await Bluebird.delay(Number(config.delayer.maximumDelay) + 30000);

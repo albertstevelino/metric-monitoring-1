@@ -69,14 +69,14 @@ describe('Increment', () => {
     });
 
     it('should increment with constant and label', () => {
-      const gaugeStub = new CounterStub();
+      const counterStub = new CounterStub();
 
       increment = new Increment({
         constant: 5,
-        promMetric: gaugeStub
+        promMetric: counterStub
       });
 
-      const incStub = sandbox.stub(gaugeStub, 'inc');
+      const incStub = sandbox.stub(counterStub, 'inc');
 
       increment.modify({}, {
         a: 'a'
@@ -108,14 +108,14 @@ describe('Increment', () => {
     });
 
     it('should increment with value from path and label', () => {
-      const gaugeStub = new CounterStub();
+      const counterStub = new CounterStub();
 
       increment = new Increment({
         path: 'a.b',
-        promMetric: gaugeStub
+        promMetric: counterStub
       });
 
-      const incStub = sandbox.stub(gaugeStub, 'inc');
+      const incStub = sandbox.stub(counterStub, 'inc');
 
       increment.modify({
         a: {
@@ -147,15 +147,15 @@ describe('Increment', () => {
     });
 
     it('should increment with value from constant and path', () => {
-      const gaugeStub = new CounterStub();
+      const counterStub = new CounterStub();
 
       increment = new Increment({
         path: 'a.b',
         constant: 5,
-        promMetric: gaugeStub
+        promMetric: counterStub
       });
 
-      const incStub = sandbox.stub(gaugeStub, 'inc');
+      const incStub = sandbox.stub(counterStub, 'inc');
 
       increment.modify({
         a: {

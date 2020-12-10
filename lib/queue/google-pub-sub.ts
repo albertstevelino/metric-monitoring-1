@@ -1,7 +1,6 @@
-import { PubSub, Subscription, Topic, Message } from '@google-cloud/pubsub';
+import { PubSub, Subscription, Message } from '@google-cloud/pubsub';
 import Bluebird from 'bluebird';
 import _ from 'lodash';
-import randomstring from 'randomstring';
 
 import GooglePubSubConfig from '../interface/google-pub-sub-config';
 import PollConfig from '../interface/poll-config';
@@ -21,27 +20,17 @@ class GooglePubSub extends Queue {
   /**
    * Queue client.
    */
-  private client: PubSub;
+  client: PubSub;
 
   /**
    * Array of subscribers.
    */
-  private readonly subscriptions: Array<Subscription>;
-
-  /**
-   * Topic that will be subscribed.
-   */
-  private readonly topic: Topic;
-
-  /**
-   * Topic name that will be subscribed.
-   */
-  private readonly topicName: string;
+  readonly subscriptions: Array<Subscription>;
 
   /**
    * Subscriber name.
    */
-  private readonly subscriptionName: string;
+  readonly subscriptionName: string;
 
   constructor(config: GooglePubSubConfig) {
     super({
@@ -60,13 +49,21 @@ class GooglePubSub extends Queue {
       projectId: config.projectId
     });
 
-    this.topic = this.client.topic(config.topicName);
-    this.topicName = config.topicName;
     this.subscriptions = [];
     this.subscriptionName = config.subscriptionName;
   }
 
-  private getDefaultPollConfig(): {
+  /**
+   * Get default poll config.
+   *
+   * @return {{
+   *   onError: Function,
+   *   additionalConfig: {
+   *     [key: string]: any
+   *   }
+   * }}
+   */
+  getDefaultPollConfig(): {
     onError: (...args: Array<any>) => void|Promise<void>,
     additionalConfig: {
       [key: string]: any
@@ -81,15 +78,44 @@ class GooglePubSub extends Queue {
   }
 
   /**
+   * Process message with error handling.
+   *
+   * @param {Message} message
+   * @param {number} subscriptionIndex
+   */
+  async processMessageWithErrorHandling(message: Message, subscriptionIndex: number): Promise<void> {
+    return Bluebird.resolve()
+      .then(async () => {
+        this.logger.info(`[Subscriber ${subscriptionIndex}] Process message: ${message.data.toString()}`);
+
+        let messageQueue;
+
+        try {
+          messageQueue = new MessageQueue(message, this.queueService);
+        } catch (error) {
+          this.ack(message);
+
+          throw error;
+        }
+
+        await this.processMessage(messageQueue);
+
+        this.logger.info(`[Subscriber ${subscriptionIndex}] Done processing message: ${JSON.stringify(messageQueue.content)}`);
+      })
+      .catch((error) => {
+        this.logger.error(`[Subscriber ${subscriptionIndex}] Error when processing message: ${message.data.toString()}. Error: ${error.message || JSON.stringify(error.stack)}`);
+      });
+  }
+
+  /**
    * Spawn a new subscriber, start polling for messages, and process them to modify the metric.
    *
-   * @param {string} subscriptionName
    * @param {PollConfig} config
    * @param {number} subscriptionIndex
    *
    * @return {Promise<Subscription>}
    */
-  private async createSubscription(subscriptionName: string, config: PollConfig, subscriptionIndex: number): Promise<Subscription> {
+  async createSubscription(config: PollConfig, subscriptionIndex: number): Promise<Subscription> {
     const subscriptionConfig = {
       flowControl: {
         maxMessages: _.defaultTo(config.concurrency, 1),
@@ -97,48 +123,15 @@ class GooglePubSub extends Queue {
       }
     };
 
-    const subscriptionOfTopic = this.topic.subscription(subscriptionName, {
+    const subscription = this.client.subscription(this.subscriptionName, {
       ...config.additionalConfig,
       ...subscriptionConfig
     });
 
-    const [isExist] = await subscriptionOfTopic.exists();
+    subscription.on('error', config.onError);
+    subscription.on('message', (message) => this.processMessageWithErrorHandling(message, subscriptionIndex));
 
-    if (isExist) {
-      subscriptionOfTopic.on('error', config.onError);
-      subscriptionOfTopic.on('message', (message) => {
-        return Bluebird.resolve()
-          .then(async () => {
-            this.logger.info(`[Subscriber ${subscriptionIndex}] Process message: ${message.data.toString()}`);
-
-            let messageQueue;
-
-            try {
-              messageQueue = new MessageQueue(message, this.queueService);
-            } catch (error) {
-              this.ack(message);
-
-              throw error;
-            }
-
-            await this.processMessage(messageQueue);
-
-            this.logger.info(`[Subscriber ${subscriptionIndex}] Done processing message: ${JSON.stringify(messageQueue.content)}`);
-          })
-          .catch((error) => {
-            this.logger.error(`[Subscriber ${subscriptionIndex}] Error when processing message: ${message.data.toString()}. Error: ${error.message || JSON.stringify(error.stack)}`);
-          });
-      });
-
-      return subscriptionOfTopic;
-    }
-
-    await subscriptionOfTopic.create();
-
-    subscriptionOfTopic.on('error', config.onError);
-    subscriptionOfTopic.on('message', this.processMessage);
-
-    return subscriptionOfTopic;
+    return subscription;
   }
 
   /**
@@ -151,19 +144,16 @@ class GooglePubSub extends Queue {
 
     const consumerCount = _.defaultTo(config.consumerCount, 1);
 
-    const identifier = randomstring.generate({
-      length: 2,
-      charset: 'numeric'
-    });
-
-    const subscriptionName = _.defaultTo(this.subscriptionName, `${this.topicName}~~event.received.${identifier}`);
+    if (this.subscriptions.length > 0) {
+      await this.close();
+    }
 
     await Bluebird.mapSeries(_.range(consumerCount), async (idx) => {
       const subscriptionIndex = idx + 1;
 
-      this.logger.info(`[Subscriber ${subscriptionIndex}] Creating subscriber ${subscriptionName}`);
+      this.logger.info(`[Subscriber ${subscriptionIndex}] Creating subscriber ${this.subscriptionName}`);
 
-      const subscription = await this.createSubscription(subscriptionName, config, subscriptionIndex);
+      const subscription = await this.createSubscription(config, subscriptionIndex);
 
       this.subscriptions.push(subscription);
     });

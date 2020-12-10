@@ -8,8 +8,7 @@ export const FIRST_LAYER_SPECIFICATION_VALIDATION_RULE = {
     name: 'memberOf',
     params: [_.values(QueueService)]
   }],
-  topic: ['required', 'string'],
-  subscription: ['string'],
+  subscription: ['required', 'string'],
   consumerCount: ['required', 'minValue:0', 'maxValue:50', 'integer'],
   concurrency: ['required', 'minValue:0', 'maxValue:50', 'integer'],
   metrics: ['required', 'array']

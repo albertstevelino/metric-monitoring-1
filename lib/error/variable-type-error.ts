@@ -3,7 +3,9 @@ class VariableTypeError extends TypeError {
   options: object;
   name: string = 'VariableTypeError';
 
-  constructor(message: string, options: object = {}) {
+  constructor(message: string, options: {
+    [key: string]: any
+  } = {}) {
     super(message);
 
     this.options = options;

@@ -32,10 +32,18 @@ class Increment implements Operation {
    * Increase the prometheus metric value when message arrives using value from constant
    * and/or value extracted from message content (if path exists in the message).
    *
-   * @param {object} content
-   * @param {object} label
+   * @param {
+   *   [key: string]: any
+   * } content
+   * @param {
+   *   [key: string]: any
+   * } label
    */
-  modify(content: object, label?: object): void {
+  modify(content: {
+    [key: string]: any
+  }, label?: {
+    [key: string]: any
+  }): void {
     if (!_.isNil(this.constant)) {
       if (_.isEmpty(label)) {
         this.promMetric.inc(this.constant);

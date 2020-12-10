@@ -10,7 +10,7 @@ chai.use(chaiAsPromised);
 
 const expect = chai.expect;
 
-describe('Promise Runner', () => {
+describe('PromiseRunner', () => {
   const PromiseRunner = proxyquire.noCallThru()('../../lib/common/promise-runner.js', {});
 
   const sandbox = sinon.createSandbox();

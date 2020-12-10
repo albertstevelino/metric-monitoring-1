@@ -3,7 +3,9 @@ class UnsupportedMetricTypeError extends TypeError {
   options: object;
   name: string = 'UnsupportedMetricTypeError';
 
-  constructor(message: string, options: object = {}) {
+  constructor(message: string, options: {
+    [key: string]: any
+  } = {}) {
     super(message);
 
     this.options = options;

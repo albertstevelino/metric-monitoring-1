@@ -4,7 +4,7 @@ import Logger = require('../common/logger');
 
 interface AWSQueueConfig {
   queuePrefixUrl: string;
-  topicName: string;
+  subscriptionName: string;
   accessKeyId: string;
   secretAccessKey: string;
   region?: string;

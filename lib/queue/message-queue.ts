@@ -6,7 +6,9 @@ class MessageQueue {
   /**
    * Content parsed from incoming message.
    */
-  content: object;
+  content: {
+    [key: string]: any
+  };
 
   /**
    * Incoming message instance.
@@ -16,7 +18,7 @@ class MessageQueue {
   /**
    * Queue service name.
    */
-  private readonly queueService: QueueService;
+  readonly queueService: QueueService;
 
   constructor(messageInstance: any, queueService: QueueService) {
     this.queueService = queueService;

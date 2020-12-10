@@ -25,12 +25,12 @@ class Metric {
   /**
    * Prometheus metric object.
    */
-  private readonly promMetric: Counter<any>|Gauge<any>;
+  readonly promMetric: Counter<any>|Gauge<any>;
 
   /**
    * Path (value) to extract each label (key).
    */
-  private readonly labelToPath: {
+  readonly labelToPath: {
     [key: string]: string
   };
 
@@ -38,12 +38,12 @@ class Metric {
    * Operations that will be done to the prometheus metric
    * for every new message.
    */
-  private readonly operations: Array<Operation>;
+  readonly operations: Array<Operation>;
 
   /**
    * Logger object to print to console.
    */
-  private readonly logger: Logger;
+  readonly logger: Logger;
 
   /**
    * Get prometheus metric instance.
@@ -52,7 +52,7 @@ class Metric {
    *
    * @return {Counter|Gauge|UnsupportedMetricTypeError}
    */
-  private static getPromMetric(config: MetricConfig): Counter<any>|Gauge<any> {
+  static getPromMetric(config: MetricConfig): Counter<any>|Gauge<any> {
     const labelNames = _.keys(config.label);
     const sanitizedLabelNames = labelNames.length > 0
       ? labelNames
@@ -80,9 +80,13 @@ class Metric {
    *
    * @param {MetricConfig} config
    *
-   * @return {object} - validation message
+   * @return {
+   *   [key: string]: any
+   * } - validation message
    */
-  static validateMetricConfig(config: MetricConfig): object {
+  static validateMetricConfig(config: MetricConfig): {
+    [key: string]: any
+  } {
     const firstLayerValidation = satpam.validate(METRIC_SPECIFICATION_VALIDATION_RULE, config);
 
     if (!firstLayerValidation.success) {
@@ -119,9 +123,13 @@ class Metric {
    *
    * @param {MetricType} type
    *
-   * @return {object|UnsupportedMetricTypeError}
+   * @return {{
+   *   [key: string]: any
+   * }|UnsupportedMetricTypeError}
    */
-  private static getValueModifierFirstValidationRule(type: MetricType): object {
+  static getValueModifierFirstValidationRule(type: MetricType): {
+    [key: string]: any
+  } {
     if (type === MetricType.Counter) {
       return COUNTER_VALUE_MODIFIER_VALIDATION_RULE;
     } else if (type === MetricType.Gauge) {
@@ -135,11 +143,19 @@ class Metric {
    * Get second layer validation rule for valueModifier field in metric config by metric type.
    *
    * @param {MetricType} type
-   * @param {object} valueModifier
+   * @param {
+   *   [key: string]: any
+   * } valueModifier
    *
-   * @return {object|UnsupportedMetricTypeError}
+   * @return {{
+   *   [key: string]: any
+   * }|UnsupportedMetricTypeError}
    */
-  private static getValueModifierSecondValidationRule(type: MetricType, valueModifier: object): object {
+  static getValueModifierSecondValidationRule(type: MetricType, valueModifier: {
+    [key: string]: any
+  }): {
+    [key: string]: any
+  } {
     let valueModifierValidationRule;
 
     if (type === MetricType.Counter) {
@@ -198,9 +214,13 @@ class Metric {
   /**
    * Modify prometheus metric value using each of the operation.
    *
-   * @param {object} content - message parsed from queue
+   * @param {
+   *   [key: string]: any
+   * } content - message parsed from queue
    */
-  modify(content: object): void {
+  modify(content: {
+    [key: string]: any
+  }): void {
     const label = _.isEmpty(this.labelToPath)
       ? undefined
       : _.mapValues(this.labelToPath, (path) => {

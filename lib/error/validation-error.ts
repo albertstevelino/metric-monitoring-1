@@ -3,7 +3,9 @@ class ValidationError extends Error {
   options: object;
   name: string = 'ValidationError';
 
-  constructor(message: string, options: object = {}) {
+  constructor(message: string, options: {
+    [key: string]: any
+  } = {}) {
     super(message);
 
     this.options = options;

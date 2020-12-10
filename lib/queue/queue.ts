@@ -23,12 +23,12 @@ abstract class Queue {
   /**
    * Array of metrics that will be modified according to the message received.
    */
-  private readonly metrics: Array<Metric>;
+  readonly metrics: Array<Metric>;
 
   /**
    * Logger to print to console.
    */
-  protected readonly logger: Logger;
+  readonly logger: Logger;
 
   protected constructor(config: QueueConfig) {
     this.metrics = [];
@@ -57,7 +57,7 @@ abstract class Queue {
    *
    * @param {MessageQueue} message
    */
-  protected processMessage(message: MessageQueue): Promise<void>|void {
+  processMessage(message: MessageQueue): Promise<void>|void {
     const observer = new Observable((subscriber) => {
       subscriber.next(message.content);
 
@@ -66,7 +66,9 @@ abstract class Queue {
 
     for (const metric of this.metrics) {
       observer.subscribe((messageContent) => {
-        metric.modify(messageContent as object);
+        metric.modify(messageContent as {
+          [key: string]: any
+        });
       });
     }
   }

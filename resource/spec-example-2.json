@@ -1,6 +1,6 @@
 {
   "service": "AWS",
-  "topic": "dev_playroom",
+  "subscription": "dev_playroom",
   "consumerCount": 5,
   "concurrency": 4,
   "metrics": [
