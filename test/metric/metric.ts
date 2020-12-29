@@ -43,22 +43,22 @@ class LoggerStub {
     this.logger = logger;
   }
 
-  warn(...args: Array<any>) {
+  warn() {
   }
 }
 
 class IncrementStub {
-  modify(...args: Array<any>) {
+  modify() {
   }
 }
 
 class DecrementStub {
-  modify(...args: Array<any>) {
+  modify() {
   }
 }
 
 class EqualStub {
-  modify(...args: Array<any>) {
+  modify() {
   }
 }
 
@@ -66,6 +66,30 @@ class UnsupportedMetricTypeErrorStub extends TypeError {
   message: string;
   options: object;
   name: string = 'UnsupportedMetricTypeError';
+
+  constructor(message: string, options: object = {}) {
+    super(message);
+
+    this.options = options;
+  }
+}
+
+class MetricNotDeclaredErrorStub extends Error {
+  message: string;
+  options: object;
+  name: string = 'MetricNotDeclaredError';
+
+  constructor(message: string, options: object = {}) {
+    super(message);
+
+    this.options = options;
+  }
+}
+
+class DuplicateMetricDeclarationErrorStub extends Error {
+  message: string;
+  options: object;
+  name: string = 'DuplicateMetricDeclarationError';
 
   constructor(message: string, options: object = {}) {
     super(message);
@@ -86,6 +110,8 @@ describe('Metric', () => {
     },
     'satpam': satpamStub,
     '../error/unsupported-metric-type-error': UnsupportedMetricTypeErrorStub,
+    '../error/metric-not-declared-error': MetricNotDeclaredErrorStub,
+    '../error/duplicate-metric-declaration-error': DuplicateMetricDeclarationErrorStub,
     '../common/logger': LoggerStub,
     './increment': IncrementStub,
     './decrement': DecrementStub,
@@ -103,12 +129,7 @@ describe('Metric', () => {
       expect(Metric.getPromMetric({
         name: 'counter',
         help: 'counter_help',
-        type: MetricType.Counter,
-        valueModifier: {
-          increase: {
-            constant: 5
-          }
-        }
+        type: MetricType.Counter
       })).to.be.instanceOf(CounterStub);
     });
 
@@ -116,12 +137,7 @@ describe('Metric', () => {
       expect(Metric.getPromMetric({
         name: 'counter',
         help: 'counter_help',
-        type: MetricType.Gauge,
-        valueModifier: {
-          increase: {
-            constant: 5
-          }
-        }
+        type: MetricType.Gauge
       })).to.be.instanceOf(GaugeStub);
     });
 
@@ -130,16 +146,7 @@ describe('Metric', () => {
         name: 'counter',
         help: 'counter_help',
         type: MetricType.Gauge,
-        valueModifier: {
-          increase: {
-            constant: 5
-          }
-        },
-        label: {
-          a: {
-            path: 'a'
-          }
-        }
+        labels: ['a']
       });
 
       expect(gauge.labelNames).to.be.deep.equal(['a']);
@@ -160,6 +167,28 @@ describe('Metric', () => {
     });
   });
 
+  describe('getMetricType', () => {
+    it('should return Counter', () => {
+      expect(Metric.getMetricType(new CounterStub({
+        name: 'counter',
+        help: 'counter_help',
+        labelNames: []
+      }))).to.be.equal(MetricType.Counter);
+    });
+
+    it('should return Gauge', () => {
+      expect(Metric.getMetricType(new GaugeStub({
+        name: 'gauge',
+        help: 'gauge_help',
+        labelNames: []
+      }))).to.be.equal(MetricType.Gauge);
+    });
+
+    it('should return UnsupportedMetricTypeError', () => {
+      expect(Metric.getMetricType.bind(Metric, new Error())).to.throw(UnsupportedMetricTypeErrorStub);
+    });
+  });
+
   describe('validateMetricConfig', () => {
     it('should return validation message when first layer validation fails', () => {
       const validateStub = sandbox.stub(satpamStub, 'validate');
@@ -171,18 +200,74 @@ describe('Metric', () => {
         }
       });
 
+      const metricByName = {
+        counter: new CounterStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: []
+        })
+      };
+
+      const metricNameSet = new Set();
+
       expect(Metric.validateMetricConfig({
         name: 'counter',
-        help: 'counter_help',
-        type: MetricType.Counter,
         valueModifier: {
           increase: {
             constant: 5
           }
         }
-      })).to.be.deep.equal({
+      }, metricByName, metricNameSet)).to.be.deep.equal({
         a: 'a'
       });
+    });
+
+    it('should throw MetricNotDeclaredError', () => {
+      const validateStub = sandbox.stub(satpamStub, 'validate');
+
+      validateStub.onCall(0).returns({
+        success: true
+      });
+
+      const metricByName = {};
+
+      const metricNameSet = new Set();
+
+      expect(Metric.validateMetricConfig.bind(Metric, {
+        name: 'counter',
+        valueModifier: {
+          increase: {
+            constant: 5
+          }
+        }
+      }, metricByName, metricNameSet)).to.throw(MetricNotDeclaredErrorStub);
+    });
+
+    it('should throw DuplicateMetricDeclarationError', () => {
+      const validateStub = sandbox.stub(satpamStub, 'validate');
+
+      validateStub.onCall(0).returns({
+        success: true
+      });
+
+      const metricByName = {
+        counter_2: new CounterStub({
+          name: 'counter_2',
+          help: 'counter_help',
+          labelNames: []
+        })
+      };
+
+      const metricNameSet = new Set(['counter_2']);
+
+      expect(Metric.validateMetricConfig.bind(Metric, {
+        name: 'counter_2',
+        valueModifier: {
+          increase: {
+            constant: 5
+          }
+        }
+      }, metricByName, metricNameSet)).to.throw(DuplicateMetricDeclarationErrorStub);
     });
 
     it('should return validation message when second layer validation fails', () => {
@@ -204,37 +289,37 @@ describe('Metric', () => {
           d: ['required']
         });
 
+      const metricByName = {
+        counter: new CounterStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: ['b', 'c']
+        })
+      }
+
+      const metricNameSet = new Set();
+
       const message = Metric.validateMetricConfig({
         name: 'counter',
-        help: 'counter_help',
-        type: MetricType.Counter,
         valueModifier: {
           increase: {
             constant: 5
           }
         },
-        label: {
-          b: {
-            path: 'b'
-          },
-          c: {
-            path: 'c'
-          }
+        labelPath: {
+          b: 'b',
+          c: 'c'
         }
-      });
+      }, metricByName, metricNameSet);
 
       expect(message).to.be.deep.equal({
         b: 'b'
       });
 
       expect(validateStub.lastCall.args[0]).to.be.deep.equal({
-        label: {
-          b: {
-            path: ['required', 'string']
-          },
-          c: {
-            path: ['required', 'string']
-          }
+        labelPath: {
+          b: ['required', 'string'],
+          c: ['required', 'string']
         },
         d: ['required']
       });
@@ -268,37 +353,37 @@ describe('Metric', () => {
           e: ['required']
         });
 
+      const metricByName = {
+        counter: new CounterStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: ['b', 'c']
+        })
+      };
+
+      const metricNameSet = new Set();
+
       const message = Metric.validateMetricConfig({
         name: 'counter',
-        help: 'counter_help',
-        type: MetricType.Counter,
         valueModifier: {
           increase: {
             constant: 5
           }
         },
-        label: {
-          b: {
-            path: 'b'
-          },
-          c: {
-            path: 'c'
-          }
+        labelPath: {
+          b: 'b',
+          c: 'c'
         }
-      });
+      }, metricByName, metricNameSet);
 
       expect(message).to.be.deep.equal({
         c: 'c'
       });
 
       expect(validateStub.args[1][0]).to.be.deep.equal({
-        label: {
-          b: {
-            path: ['required', 'string']
-          },
-          c: {
-            path: ['required', 'string']
-          }
+        labelPath: {
+          b: ['required', 'string'],
+          c: ['required', 'string']
         },
         d: ['required']
       });
@@ -499,21 +584,10 @@ describe('Metric', () => {
 
   describe('constructor', () => {
     it('should has operation: increment', () => {
-      sandbox.stub(Metric, 'getPromMetric')
-        .returns(new CounterStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a', 'c']
-        }));
-
       metric = new Metric({
-        label: {
-          a: {
-            path: 'b'
-          },
-          c: {
-            path: 'd'
-          }
+        labelPath: {
+          a: 'b',
+          c: 'd'
         },
         valueModifier: {
           increase: {
@@ -524,7 +598,12 @@ describe('Metric', () => {
           }
         },
         type: MetricType.Counter,
-        logger: new LoggerStub(console)
+        logger: new LoggerStub(console),
+        promMetric: new CounterStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: ['a', 'c']
+        })
       });
 
       expect(metric.operations.length).to.be.equal(1);
@@ -536,18 +615,9 @@ describe('Metric', () => {
     });
 
     it('should has operation: increment, decrement, equal', () => {
-      sandbox.stub(Metric, 'getPromMetric')
-        .returns(new GaugeStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a']
-        }));
-
       metric = new Metric({
-        label: {
-          a: {
-            path: 'a'
-          }
+        labelPath: {
+          a: 'a'
         },
         valueModifier: {
           increase: {
@@ -561,7 +631,12 @@ describe('Metric', () => {
           }
         },
         type: MetricType.Gauge,
-        logger: new LoggerStub(console)
+        logger: new LoggerStub(console),
+        promMetric: new GaugeStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: ['a']
+        })
       });
 
       expect(metric.operations.length).to.be.equal(3);
@@ -571,18 +646,9 @@ describe('Metric', () => {
     });
 
     it('should has operation: decrement', () => {
-      sandbox.stub(Metric, 'getPromMetric')
-        .returns(new GaugeStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a']
-        }));
-
       metric = new Metric({
-        label: {
-          a: {
-            path: 'a'
-          }
+        labelPath: {
+          a: 'a'
         },
         valueModifier: {
           decrease: {
@@ -590,7 +656,12 @@ describe('Metric', () => {
           }
         },
         type: MetricType.Gauge,
-        logger: new LoggerStub(console)
+        logger: new LoggerStub(console),
+        promMetric: new GaugeStub({
+          name: 'counter',
+          help: 'counter_help',
+          labelNames: ['a']
+        })
       });
 
       expect(metric.operations.length).to.be.equal(1);
@@ -600,17 +671,13 @@ describe('Metric', () => {
 
   describe('modify', () => {
     it('should modify all of the operation', () => {
+      const incrementModifyStub = sandbox.stub(IncrementStub.prototype, 'modify');
+      const decrementModifyStub = sandbox.stub(DecrementStub.prototype, 'modify');
+      const equalModifyStub = sandbox.stub(EqualStub.prototype, 'modify');
+
       const logger = new LoggerStub(console);
 
       metric = new Metric({
-        label: {
-          a: {
-            path: 'b'
-          },
-          c: {
-            path: 'd'
-          }
-        },
         valueModifier: {
           increase: {
             constant: 1
@@ -622,28 +689,17 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        type: MetricType.Gauge,
-        logger
+        promMetric: new GaugeStub({
+          name: 'gauge',
+          help: 'gauge_help',
+          labelNames: ['a', 'c']
+        }),
+        logger,
+        labelPath: {
+          a: 'a.b',
+          c: 'c.d'
+        }
       });
-
-      metric.labelToPath = {
-        a: 'a.b',
-        c: 'c.d'
-      };
-
-      const increment = new IncrementStub();
-      const decrement = new DecrementStub();
-      const equal = new EqualStub();
-
-      metric.operations = [
-        increment,
-        decrement,
-        equal
-      ];
-
-      const incrementModifyStub = sandbox.stub(increment, 'modify');
-      const decrementModifyStub = sandbox.stub(decrement, 'modify');
-      const equalModifyStub = sandbox.stub(equal, 'modify');
 
       const content = {
         a: {
@@ -682,6 +738,14 @@ describe('Metric', () => {
     });
 
     it('should skip if modification fails', () => {
+      const incrementModifyStub = sandbox.stub(IncrementStub.prototype, 'modify');
+      const decrementModifyStub = sandbox.stub(DecrementStub.prototype, 'modify')
+          .throws(() => {
+            throw new Error();
+          });
+      const equalModifyStub = sandbox.stub(EqualStub.prototype, 'modify');
+      const warnStub = sandbox.stub(LoggerStub.prototype, 'warn');
+
       const logger = new LoggerStub(console);
 
       metric = new Metric({
@@ -696,29 +760,13 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        type: MetricType.Gauge,
+        promMetric: new GaugeStub({
+          name: 'gauge',
+          help: 'gauge_help',
+          labelNames: []
+        }),
         logger
       });
-
-      metric.labelToPath = {};
-
-      const increment = new IncrementStub();
-      const decrement = new DecrementStub();
-      const equal = new EqualStub();
-
-      metric.operations = [
-        increment,
-        decrement,
-        equal
-      ];
-
-      const incrementModifyStub = sandbox.stub(increment, 'modify');
-      const decrementModifyStub = sandbox.stub(decrement, 'modify')
-        .throws(() => {
-          throw new Error();
-        });
-      const equalModifyStub = sandbox.stub(equal, 'modify');
-      const warnStub = sandbox.stub(logger, 'warn');
 
       const content = {};
 

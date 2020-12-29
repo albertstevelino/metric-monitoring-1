@@ -3,7 +3,6 @@ import sinon from 'sinon';
 import proxyquire from 'proxyquire';
 import sinonChai from 'sinon-chai';
 import chaiAsPromised from 'chai-as-promised';
-import QueueService from '../../lib/enum/queue-service';
 
 chai.use(sinonChai);
 chai.use(chaiAsPromised);
@@ -11,7 +10,7 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 class SubscriptionStub {
-  on(...args: Array<any>) {
+  on() {
   }
 
   close() {
@@ -19,7 +18,7 @@ class SubscriptionStub {
 }
 
 class PubSubStub {
-  subscription(...args: Array<any>) {
+  subscription() {
     return new SubscriptionStub();
   }
 }
@@ -57,14 +56,14 @@ class QueueStub {
     this.pollConfig = pollConfig;
   }
 
-  processMessage(...args: Array<any>) {
+  processMessage() {
   }
 }
 
 class MessageQueueStub {
   message; any;
 
-  constructor(message: any, queueService: QueueService) {
+  constructor(message: any) {
     this.message = message.content.toString();
   }
 }
@@ -215,23 +214,19 @@ describe('GooglePubSub', () => {
       queue = new GooglePubSub({
         subscriptionName: 'subscription-name',
         pollConfig: {
-          consumerCount: 5
+          consumerCount: 2
         },
         logger: new LoggerStub()
       });
-
-      queue.subscriptions = [
-        new SubscriptionStub(),
-        new SubscriptionStub()
-      ];
 
       const closeStub = sandbox.stub(queue, 'close');
       const createSubscriptionStub = sandbox.stub(queue, 'createSubscription');
 
       await queue.poll();
+      await queue.poll();
 
       expect(closeStub.args.length).to.be.equal(1);
-      expect(createSubscriptionStub.args.length).to.be.equal(5);
+      expect(createSubscriptionStub.args.length).to.be.equal(4);
     });
 
     it('should directly spawn the new subscribers', async () => {
@@ -296,6 +291,8 @@ describe('GooglePubSub', () => {
   describe('close', async () => {
     it('should close all of the subscribers', async () => {
       const closeStub = sandbox.stub(SubscriptionStub.prototype, 'close');
+      sandbox.stub(GooglePubSub.prototype, 'createSubscription')
+        .returns(new SubscriptionStub());
 
       queue = new GooglePubSub({
         pollConfig: {
@@ -305,12 +302,7 @@ describe('GooglePubSub', () => {
         logger: new LoggerStub()
       });
 
-      queue.subscriptions = [
-        new SubscriptionStub(),
-        new SubscriptionStub(),
-        new SubscriptionStub()
-      ];
-
+      await queue.poll();
       await queue.close();
 
       expect(closeStub.args.length).to.be.equal(3);
@@ -319,6 +311,8 @@ describe('GooglePubSub', () => {
 
     it('should close several subscribers', async () => {
       const closeStub = sandbox.stub(SubscriptionStub.prototype, 'close');
+      sandbox.stub(GooglePubSub.prototype, 'createSubscription')
+        .returns(new SubscriptionStub());
 
       queue = new GooglePubSub({
         pollConfig: {
@@ -328,11 +322,7 @@ describe('GooglePubSub', () => {
         logger: new LoggerStub()
       });
 
-      queue.subscriptions = [
-        new SubscriptionStub(),
-        new SubscriptionStub(),
-        new SubscriptionStub()
-      ];
+      await queue.poll();
 
       await queue.close(1);
 
@@ -342,6 +332,8 @@ describe('GooglePubSub', () => {
 
     it('should not error if number of closed subscribers passed is bigger than the actual number of subscribers', async () => {
       const closeStub = sandbox.stub(SubscriptionStub.prototype, 'close');
+      sandbox.stub(GooglePubSub.prototype, 'createSubscription')
+        .returns(new SubscriptionStub());
 
       queue = new GooglePubSub({
         pollConfig: {
@@ -351,12 +343,7 @@ describe('GooglePubSub', () => {
         logger: new LoggerStub()
       });
 
-      queue.subscriptions = [
-        new SubscriptionStub(),
-        new SubscriptionStub(),
-        new SubscriptionStub()
-      ];
-
+      await queue.poll();
       await queue.close(999);
 
       expect(closeStub.args.length).to.be.equal(3);

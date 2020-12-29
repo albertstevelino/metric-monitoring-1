@@ -10,8 +10,8 @@ import { Server } from 'http';
 import GooglePubSubConfig from './interface/google-pub-sub-config';
 import AWSQueueConfig from './interface/aws-queue-config';
 import RegisterConfig from './interface/register-config';
-import RegisterCommonConfig from "./interface/register-common-config";
-import MetricCommonConfig from "./interface/metric-common-config";
+import RegisterCommonConfig from './interface/register-common-config';
+import MetricCommonConfig from './interface/metric-common-config';
 
 import QueueService from './enum/queue-service';
 
