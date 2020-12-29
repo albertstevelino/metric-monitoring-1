@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { register } from 'prom-client';
+import { register, Counter, Gauge } from 'prom-client';
 import Bluebird from 'bluebird';
 import path from 'path';
 import _ from 'lodash';
@@ -10,10 +10,14 @@ import { Server } from 'http';
 import GooglePubSubConfig from './interface/google-pub-sub-config';
 import AWSQueueConfig from './interface/aws-queue-config';
 import RegisterConfig from './interface/register-config';
+import RegisterCommonConfig from "./interface/register-common-config";
+import MetricCommonConfig from "./interface/metric-common-config";
 
 import QueueService from './enum/queue-service';
 
-import UnsupportedQueueServiceError = require('./error/unsupported-queue-service-error');
+import UnsupportedQueueServiceError from './error/unsupported-queue-service-error';
+import ValidationError from './error/validation-error';
+import DuplicateMetricDeclarationError from './error/duplicate-metric-declaration-error';
 
 import GooglePubSub from './queue/google-pub-sub';
 import AWSQueue from './queue/aws-queue';
@@ -23,9 +27,10 @@ import Logger from './common/logger';
 
 import {
   FIRST_LAYER_SPECIFICATION_VALIDATION_RULE,
-  CREDENTIAL_VALIDATION_RULE
+  CREDENTIAL_VALIDATION_RULE,
+  FIRST_LAYER_METRIC_SPECIFICATION_VALIDATION_RULE,
+  METRIC_VALIDATION_RULE
 } from './constant/specification';
-import ValidationError = require('./error/validation-error');
 
 class Orchestrator {
   /**
@@ -44,6 +49,13 @@ class Orchestrator {
   readonly credential: {
     [key in keyof typeof QueueService]: GooglePubSubConfig|AWSQueueConfig
   };
+
+  /**
+   * Registered metric by name.
+   */
+  metricByName: {
+    [key: string]: Counter<any>|Gauge<any>
+  }
 
   /**
    * Get all file paths recursively from a directory path.
@@ -73,15 +85,15 @@ class Orchestrator {
   }
 
   /**
-   * Read all of specifications from file paths and/or directory paths.
+   * Read all of queue specifications from file paths and/or directory paths.
    *
-   * @param {RegisterConfig} config
+   * @param {RegisterCommonConfig} config
    *
    * @return {Promise<Array<{
    *   [key: string]: any
    * }>>}
    */
-  static async getAllSpecificationsFromPaths(config: RegisterConfig): Promise<Array<{
+  static async getAllSpecificationsFromPaths(config: RegisterCommonConfig): Promise<Array<{
     [key: string]: any
   }>> {
     const directoryPaths = _.defaultTo(config.directoryPaths, []);
@@ -105,21 +117,21 @@ class Orchestrator {
   }
 
   /**
-   * Validate specification to make sure it is in valid format.
+   * Validate metric specifications to make sure it is in valid format.
    *
    * @param {any} specification
    *
    * @return {
-   *   [key: string]: any
+   *   [key: number]: any
    * } - the validation message
    */
-  static validateSpecification(specification: any): {
+  static validateMetricSpecification(specification: any): {
     [key: string]: any
   } {
-    const firstLayerValidation = satpam.validate(FIRST_LAYER_SPECIFICATION_VALIDATION_RULE, specification);
+    const firstLayerValidation = satpam.validate(FIRST_LAYER_METRIC_SPECIFICATION_VALIDATION_RULE, specification);
 
-    const metricValidationMessages = _.map(_.get(specification, 'metrics'), (metric) => {
-      return Metric.validateMetricConfig(metric);
+    const metricValidationMessages = _.map(_.get(specification, 'metrics'), (metricSpecification) => {
+      return satpam.validate(METRIC_VALIDATION_RULE, metricSpecification).messages;
     });
 
     const filteredMetricValidationMessages = _.filter(metricValidationMessages, (message) => !_.isEmpty(message));
@@ -160,6 +172,7 @@ class Orchestrator {
     this.credential = credential;
     this.queues = [];
     this.logger = new Logger(logger);
+    this.metricByName = {};
   }
 
   /**
@@ -178,6 +191,7 @@ class Orchestrator {
         consumerCount: specification.consumerCount,
         concurrency: specification.concurrency
       },
+      metricByName: this.metricByName,
       logger: this.logger
     };
 
@@ -188,6 +202,41 @@ class Orchestrator {
     } else {
       throw new UnsupportedQueueServiceError(`Queue service ${specification.service} is not supported.`);
     }
+  }
+
+  /**
+   * Validate queue specification to make sure it is in valid format.
+   *
+   * @param {any} specification
+   *
+   * @return {
+   *   [key: string]: any
+   * } - the validation message
+   */
+  validateQueueSpecification(specification: any): {
+    [key: string]: any
+  } {
+    const firstLayerValidation = satpam.validate(FIRST_LAYER_SPECIFICATION_VALIDATION_RULE, specification);
+
+    const metricNameSet = new Set();
+
+    const metricValidationMessages = _.map(_.get(specification, 'metrics'), (metric) => {
+      return Metric.validateMetricConfig(metric, this.metricByName, metricNameSet as Set<string>);
+    });
+
+    const filteredMetricValidationMessages = _.filter(metricValidationMessages, (message) => !_.isEmpty(message));
+
+    if (_.isEmpty(filteredMetricValidationMessages)) {
+      return firstLayerValidation.messages;
+    }
+
+    const metricValidationMessage = {
+      metrics: {
+        elementOfArray: { ...metricValidationMessages } // key: index array, value: validation message
+      }
+    };
+
+    return _.merge(firstLayerValidation.messages, metricValidationMessage);
   }
 
   /**
@@ -224,6 +273,19 @@ class Orchestrator {
   }
 
   /**
+   * Register metric according to the specification.
+   *
+   * @param {MetricCommonConfig} metricSpecification
+   */
+  registerMetric(metricSpecification: MetricCommonConfig): void {
+    if (this.metricByName[metricSpecification.name]) {
+      throw new DuplicateMetricDeclarationError(`Metric ${metricSpecification.name} has been declared previously.`);
+    }
+
+    this.metricByName[metricSpecification.name] = Metric.getPromMetric(metricSpecification);
+  }
+
+  /**
    * Start polling in queues defined in specifications.
    * Stop all of the queues immediately if there is an error when starting one of the queues.
    */
@@ -256,26 +318,19 @@ class Orchestrator {
   }
 
   /**
-   * Register all of the queues according to the specifications defined in
+   * Register all of the metrics according to the specifications defined in
    * file paths and/or directory paths.
    *
    * @param {RegisterConfig} config
    */
-  async register(config: RegisterConfig): Promise<void> {
-    const specifications = await Orchestrator.getAllSpecificationsFromPaths(config);
-
-    const serviceNames = Orchestrator.extractServiceNamesFromSpecifications(specifications);
-
-    const credentialValidationMessage = this.validateCredential(serviceNames);
-
-    if (!_.isEmpty(credentialValidationMessage)) {
-      throw new ValidationError('Credentials passed have invalid format.', {
-        message: credentialValidationMessage
-      });
-    }
+  async registerMetrics(config: RegisterConfig): Promise<void> {
+    const specifications = await Orchestrator.getAllSpecificationsFromPaths({
+      directoryPaths: config.metricDirectoryFilePaths,
+      filePaths: config.metricFilePaths
+    });
 
     const specificationValidationMessages = _.reduce(specifications, (acc, specification) => {
-      const validationMessage = Orchestrator.validateSpecification(specification);
+      const validationMessage = Orchestrator.validateMetricSpecification(specification);
 
       if (_.isEmpty(validationMessage)) {
         return acc;
@@ -288,7 +343,55 @@ class Orchestrator {
     }, []);
 
     if (!_.isEmpty(specificationValidationMessages)) {
-      throw new ValidationError('Specifications have invalid format.', {
+      throw new ValidationError('Metric specifications have invalid format.', {
+        messages: specificationValidationMessages
+      });
+    }
+
+    for (const specification of specifications) {
+      for (const metricSpecification of specification.metrics) {
+        this.registerMetric(metricSpecification as MetricCommonConfig);
+      }
+    }
+  }
+
+  /**
+   * Register all of the queues according to the specifications defined in
+   * file paths and/or directory paths.
+   *
+   * @param {RegisterConfig} config
+   */
+  async registerQueues(config: RegisterConfig): Promise<void> {
+    const specifications = await Orchestrator.getAllSpecificationsFromPaths({
+      directoryPaths: config.queueDirectoryPaths,
+      filePaths: config.queueFilePaths
+    });
+
+    const serviceNames = Orchestrator.extractServiceNamesFromSpecifications(specifications);
+
+    const credentialValidationMessage = this.validateCredential(serviceNames);
+
+    if (!_.isEmpty(credentialValidationMessage)) {
+      throw new ValidationError('Credentials passed have invalid format.', {
+        message: credentialValidationMessage
+      });
+    }
+
+    const specificationValidationMessages = _.reduce(specifications, (acc, specification) => {
+      const validationMessage = this.validateQueueSpecification(specification);
+
+      if (_.isEmpty(validationMessage)) {
+        return acc;
+      }
+
+      return _.concat(acc, {
+        filePath: specification.filePath,
+        message: validationMessage
+      });
+    }, []);
+
+    if (!_.isEmpty(specificationValidationMessages)) {
+      throw new ValidationError('Queue specifications have invalid format.', {
         messages: specificationValidationMessages
       });
     }
@@ -296,6 +399,17 @@ class Orchestrator {
     for (const specification of specifications) {
       this.registerQueue(specification);
     }
+  }
+
+  /**
+   * Register all of the metrics and queues according to the specifications defined in
+   * file paths and/or directory paths.
+   *
+   * @param {RegisterConfig} config
+   */
+  async register(config: RegisterConfig): Promise<void> {
+    await this.registerMetrics(config);
+    await this.registerQueues(config);
   }
 
   /**

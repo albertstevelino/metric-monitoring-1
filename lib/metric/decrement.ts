@@ -4,7 +4,7 @@ import _ from 'lodash';
 import Operation from '../interface/operation';
 import OperationConfig from '../interface/operation-config';
 
-import VariableTypeError = require('../error/variable-type-error');
+import VariableTypeError from '../error/variable-type-error';
 
 class Decrement implements Operation {
   /**

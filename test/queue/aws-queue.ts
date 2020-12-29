@@ -5,7 +5,8 @@ import sinon from 'sinon';
 import proxyquire from 'proxyquire';
 import sinonChai from 'sinon-chai';
 import chaiAsPromised from 'chai-as-promised';
-import QueueService = require('../../lib/enum/queue-service');
+
+import QueueService from '../../lib/enum/queue-service';
 
 chai.use(sinonChai);
 chai.use(chaiAsPromised);

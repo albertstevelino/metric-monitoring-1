@@ -8,7 +8,7 @@ import chaiAsPromised from 'chai-as-promised';
 chai.use(sinonChai);
 chai.use(chaiAsPromised);
 
-import MetricType = require('../../lib/enum/metric-type');
+import MetricType from '../../lib/enum/metric-type';
 
 const expect = chai.expect;
 

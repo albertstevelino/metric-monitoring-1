@@ -14,15 +14,24 @@ export const FIRST_LAYER_SPECIFICATION_VALIDATION_RULE = {
   metrics: ['required', 'array']
 };
 
-export const METRIC_SPECIFICATION_VALIDATION_RULE = {
+export const FIRST_LAYER_METRIC_SPECIFICATION_VALIDATION_RULE = {
+  metrics: ['required', 'array']
+};
+
+export const METRIC_VALIDATION_RULE = {
   name: ['required', 'string'],
   help: ['required', 'string'],
   type: ['required', {
     name: 'memberOf',
     params: [_.values(MetricType)]
   }],
+  labels: ['array']
+};
+
+export const METRIC_SPECIFICATION_VALIDATION_RULE = {
+  name: ['required', 'string'],
   valueModifier: ['required', 'plainObject'],
-  label: ['plainObject']
+  labelPath: ['plainObject']
 };
 
 export const CREDENTIAL_VALIDATION_RULE = {

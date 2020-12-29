@@ -1,0 +1,20 @@
+{
+  "metrics": [
+    {
+      "name": "app_created_3",
+      "help": "app_created_3_help",
+      "type": "COUNTER",
+      "labels": [
+        "applicantName"
+      ]
+    },
+    {
+      "name": "app_created_4",
+      "help": "app_created_4_help",
+      "type": "GAUGE",
+      "labels": [
+        "applicantGender"
+      ]
+    }
+  ]
+}
