@@ -325,7 +325,7 @@ class Orchestrator {
    */
   async registerMetrics(config: RegisterConfig): Promise<void> {
     const specifications = await Orchestrator.getAllSpecificationsFromPaths({
-      directoryPaths: config.metricDirectoryFilePaths,
+      directoryPaths: config.metricDirectoryPaths,
       filePaths: config.metricFilePaths
     });
 
