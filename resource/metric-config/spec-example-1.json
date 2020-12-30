@@ -1,0 +1,20 @@
+{
+  "metrics": [
+    {
+      "name": "app_created",
+      "help": "app_created_help",
+      "type": "COUNTER",
+      "labels": [
+        "productType"
+      ]
+    },
+    {
+      "name": "app_created_2",
+      "help": "app_created_2_help",
+      "type": "GAUGE",
+      "labels": [
+        "partner"
+      ]
+    }
+  ]
+}

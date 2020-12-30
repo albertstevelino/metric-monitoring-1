@@ -11,7 +11,7 @@ chai.use(chaiAsPromised);
 const expect = chai.expect;
 
 class MetricStub {
-  modify(...args: Array<any>) {
+  modify() {
   }
 }
 
@@ -22,7 +22,7 @@ class ObservableStub {
     });
   }
 
-  subscribe(...args: Array<any>) {
+  subscribe() {
   }
 }
 
@@ -69,7 +69,8 @@ describe('Queue', () => {
   describe('constructor', () => {
     it('should populate initial properties', () => {
       queue = new AWSQueue({
-        metricConfigs: [{}, {}, {}]
+        metricConfigs: [{}, {}, {}],
+        metricByName: {}
       });
 
       expect(queue.metrics.length).to.be.equal(3);
@@ -91,7 +92,8 @@ describe('Queue', () => {
         });
 
       queue = new AWSQueue({
-        metricConfigs: [{}, {}, {}]
+        metricConfigs: [{}, {}, {}],
+        metricByName: {}
       });
 
       queue.processMessage(new MessageQueueStub());

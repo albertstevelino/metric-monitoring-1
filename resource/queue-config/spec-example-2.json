@@ -1,0 +1,38 @@
+{
+  "service": "AWS",
+  "subscription": "dev_playroom",
+  "consumerCount": 5,
+  "concurrency": 4,
+  "metrics": [
+    {
+      "name": "app_created_3",
+      "valueModifier": {
+        "increase": {
+          "constant": 1,
+          "path": "inc"
+        }
+      },
+      "labelPath": {
+        "applicantName": "applicantName"
+      }
+    },
+    {
+      "name": "app_created_4",
+      "valueModifier": {
+        "increase": {
+          "constant": 1,
+          "path": "incGauge"
+        },
+        "decrease": {
+          "constant": 1
+        },
+        "set": {
+          "constant": 4
+        }
+      },
+      "labelPath": {
+        "applicantGender": "applicantGender"
+      }
+    }
+  ]
+}

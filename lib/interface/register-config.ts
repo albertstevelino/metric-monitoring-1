@@ -1,6 +1,8 @@
 interface RegisterConfig {
-  filePaths?: Array<string>;
-  directoryPaths?: Array<string>;
+  queueFilePaths?: Array<string>;
+  queueDirectoryPaths?: Array<string>;
+  metricFilePaths?: Array<string>;
+  metricDirectoryPaths?: Array<string>;
 }
 
 export = RegisterConfig;

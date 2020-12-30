@@ -76,7 +76,8 @@ class AWSQueue extends Queue {
       queueService: QueueService.AWS,
       metricConfigs: config.metricConfigs,
       pollConfig: config.pollConfig,
-      logger: config.logger
+      logger: config.logger,
+      metricByName: config.metricByName
     });
 
     this.queueUrl = url.resolve(config.queuePrefixUrl, config.subscriptionName);

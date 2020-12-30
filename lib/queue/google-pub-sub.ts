@@ -37,7 +37,8 @@ class GooglePubSub extends Queue {
       queueService: QueueService.GooglePubSub,
       metricConfigs: config.metricConfigs,
       pollConfig: config.pollConfig,
-      logger: config.logger
+      logger: config.logger,
+      metricByName: config.metricByName
     });
 
     this.client = new PubSub({

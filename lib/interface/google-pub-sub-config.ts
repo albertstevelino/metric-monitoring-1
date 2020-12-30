@@ -1,6 +1,9 @@
+import { Counter, Gauge } from 'prom-client';
+
 import MetricConfig from './metric-config';
 import PollConfig from './poll-config';
-import Logger = require('../common/logger');
+
+import Logger from '../common/logger';
 
 interface GooglePubSubConfig {
   clientEmail: string;
@@ -9,6 +12,9 @@ interface GooglePubSubConfig {
   metricConfigs: Array<MetricConfig>;
   pollConfig: PollConfig;
   logger: Logger;
+  metricByName: {
+    [key: string]: Counter<any>|Gauge<any>
+  }
   subscriptionName: string;
   additionalConfig?: {
     [key: string]: any

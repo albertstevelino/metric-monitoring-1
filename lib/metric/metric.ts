@@ -3,16 +3,19 @@ import _ from 'lodash';
 import satpam from 'satpam';
 
 import MetricConfig from '../interface/metric-config';
+import MetricCommonConfig from '../interface/metric-common-config';
 import Operation from '../interface/operation';
 
 import UnsupportedMetricTypeError from '../error/unsupported-metric-type-error';
+import MetricNotDeclaredError from '../error/metric-not-declared-error';
+import DuplicateMetricDeclarationError from '../error/duplicate-metric-declaration-error';
 
 import MetricType from '../enum/metric-type';
 
 import Increment from './increment';
 import Decrement from './decrement';
 import Equal from './equal';
-import Logger = require('../common/logger');
+import Logger from '../common/logger';
 
 import {
   CONSTANT_OR_PATH_VALIDATION_RULE,
@@ -52,8 +55,8 @@ class Metric {
    *
    * @return {Counter|Gauge|UnsupportedMetricTypeError}
    */
-  static getPromMetric(config: MetricConfig): Counter<any>|Gauge<any> {
-    const labelNames = _.keys(config.label);
+  static getPromMetric(config: MetricCommonConfig): Counter<any>|Gauge<any> {
+    const labelNames = _.defaultTo(config.labels, []);
     const sanitizedLabelNames = labelNames.length > 0
       ? labelNames
       : undefined;
@@ -76,15 +79,38 @@ class Metric {
   }
 
   /**
+   * Get metric type.
+   *
+   * @param {Counter<any>|Gauge<any>} metric
+   *
+   * @return {MetricType|UnsupportedMetricTypeError}
+   */
+  static getMetricType(metric: Counter<any>|Gauge<any>) {
+    if (metric instanceof Counter) {
+      return MetricType.Counter;
+    } else if (metric instanceof Gauge) {
+      return MetricType.Gauge;
+    } else {
+      throw new UnsupportedMetricTypeError(`Metric type cannot be recognized.`);
+    }
+  }
+
+  /**
    * Validate metric config specified in certain file path using satpam object validator.
    *
    * @param {MetricConfig} config
+   * @param {
+   *   [key: string]: Counter<any>|Gauge<any>
+   * } metricByName
+   * @param {Set<string>} metricNameSet
    *
    * @return {
    *   [key: string]: any
    * } - validation message
    */
-  static validateMetricConfig(config: MetricConfig): {
+  static validateMetricConfig(config: MetricConfig, metricByName: {
+   [key: string]: Counter<any>|Gauge<any>
+  }, metricNameSet: Set<string>): {
     [key: string]: any
   } {
     const firstLayerValidation = satpam.validate(METRIC_SPECIFICATION_VALIDATION_RULE, config);
@@ -93,15 +119,29 @@ class Metric {
       return firstLayerValidation.messages;
     }
 
-    const labelKeys = _.keys(config.label);
+    if (!metricByName[config.name]) {
+      throw new MetricNotDeclaredError(`Metric ${config.name} has not been declared yet.`);
+    }
+
+    if (metricNameSet.has(config.name)) {
+      throw new DuplicateMetricDeclarationError(`Metric ${config.name} is declared more than once in the same subscriber/consumer.`);
+    }
+
+    metricNameSet.add(config.name);
 
     const labelValidationRule = {
-      label: _.zipObject(labelKeys, Array(labelKeys.length).fill({
-        path: ['required', 'string']
-      }))
+      labelPath: _.chain(metricByName[config.name])
+        .get('labelNames')
+        .keyBy()
+        .mapValues(() => {
+          return ['required', 'string'];
+        })
+        .value()
     };
 
-    const valueModifierFirstValidationRule = Metric.getValueModifierFirstValidationRule(config.type);
+    const metricType = Metric.getMetricType(metricByName[config.name]);
+
+    const valueModifierFirstValidationRule = Metric.getValueModifierFirstValidationRule(metricType);
 
     const secondLayerValidationRule = _.merge(labelValidationRule, valueModifierFirstValidationRule);
 
@@ -111,7 +151,7 @@ class Metric {
       return secondLayerValidation.messages;
     }
 
-    const thirdLayerValidationRule = Metric.getValueModifierSecondValidationRule(config.type, config.valueModifier);
+    const thirdLayerValidationRule = Metric.getValueModifierSecondValidationRule(metricType, config.valueModifier);
 
     const thirdLayerValidation = satpam.validate(thirdLayerValidationRule, config);
 
@@ -176,12 +216,19 @@ class Metric {
     };
   }
 
-  constructor(config: MetricConfig & { logger: Logger }) {
-    this.promMetric = Metric.getPromMetric(config);
+  constructor(config: MetricConfig & {
+    metricByName: {
+      [key: string]: Counter<any>|Gauge<any>
+    },
+    logger: Logger
+  }) {
+    this.promMetric = config.metricByName[config.name];
 
-    this.labelToPath = _.mapValues(config.label, _.property('path'));
+    this.labelToPath = _.pick(config.labelPath, _.get(this.promMetric, 'labelNames'));
     this.operations = [];
     this.logger = config.logger;
+
+    const metricType = Metric.getMetricType(this.promMetric);
 
     if (_.has(config.valueModifier, 'increase')) {
       const operation = new Increment({
@@ -192,7 +239,7 @@ class Metric {
       this.operations.push(operation);
     }
 
-    if (_.has(config.valueModifier, 'decrease') && config.type === MetricType.Gauge) {
+    if (_.has(config.valueModifier, 'decrease') && metricType === MetricType.Gauge) {
       const operation = new Decrement({
         ...config.valueModifier.decrease,
         promMetric: this.promMetric
@@ -201,7 +248,7 @@ class Metric {
       this.operations.push(operation);
     }
 
-    if (_.has(config.valueModifier, 'set') && config.type === MetricType.Gauge) {
+    if (_.has(config.valueModifier, 'set') && metricType === MetricType.Gauge) {
       const operation = new Equal({
         ...config.valueModifier.set,
         promMetric: this.promMetric

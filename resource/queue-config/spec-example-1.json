@@ -1,0 +1,46 @@
+{
+  "service": "GOOGLE_PUB_SUB",
+  "subscription": "dev_playroom~~event.received.test",
+  "consumerCount": 5,
+  "concurrency": 4,
+  "metrics": [
+    {
+      "name": "app_created",
+      "valueModifier": {
+        "increase": {
+          "constant": 1,
+          "path": "sum"
+        }
+      },
+      "labelPath": {
+        "productType": "productType"
+      }
+    },
+    {
+      "name": "app_created_3",
+      "valueModifier": {
+        "increase": {
+          "constant": 1,
+          "path": "sum"
+        }
+      },
+      "labelPath": {
+        "applicantName": "applicantName"
+      }
+    },
+    {
+      "name": "app_created_2",
+      "valueModifier": {
+        "decrease": {
+          "path": "dec"
+        },
+        "set": {
+          "path": "set"
+        }
+      },
+      "labelPath": {
+        "partner": "partner"
+      }
+    }
+  ]
+}

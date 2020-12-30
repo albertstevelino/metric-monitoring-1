@@ -6,10 +6,15 @@ import sinonChai from 'sinon-chai';
 import chaiAsPromised from 'chai-as-promised';
 import Bluebird from 'bluebird';
 
+import MetricType from '../lib/enum/metric-type';
+
 chai.use(sinonChai);
 chai.use(chaiAsPromised);
 
 const expect = chai.expect;
+
+class CounterStub {
+}
 
 class AWSQueueStub {
   poll() {
@@ -33,6 +38,9 @@ class QueueStub {
 class MetricStub {
   static validateMetricConfig() {
   }
+
+  static getPromMetric() {
+  }
 }
 
 class LoggerStub {
@@ -52,6 +60,20 @@ class UnsupportedQueueServiceErrorStub extends TypeError {
   message: string;
   options: object;
   name: string = 'UnsupportedQueueServiceError';
+
+  constructor(message: string, options: {
+    [key: string]: any
+  } = {}) {
+    super(message);
+
+    this.options = options;
+  }
+}
+
+class DuplicateMetricDeclarationErrorStub extends Error {
+  message: string;
+  options: object;
+  name: string = 'DuplicateMetricDeclarationError';
 
   constructor(message: string, options: {
     [key: string]: any
@@ -101,6 +123,7 @@ describe('Orchestrator', () => {
     './metric/metric': MetricStub,
     './common/logger': LoggerStub,
     './error/unsupported-queue-service-error': UnsupportedQueueServiceErrorStub,
+    './error/duplicate-metric-declaration-error': DuplicateMetricDeclarationErrorStub,
     'satpam': satpamStub,
     'express': () => expressStub.initiate(),
     'prom-client': {
@@ -165,7 +188,63 @@ describe('Orchestrator', () => {
     });
   });
 
-  describe('validateSpecification', () => {
+  describe('validateMetricSpecification', () => {
+    it('should return first layer validation message', () => {
+      sandbox.stub(satpamStub, 'validate')
+        .onCall(0)
+        .returns({
+          success: false,
+          messages: {
+            a: 'a'
+          }
+        })
+        .onCall(1)
+        .returns({
+          success: true
+        });
+
+      expect(Orchestrator.validateMetricSpecification({
+        metrics: [{}]
+      })).to.be.deep.equal({
+        a: 'a'
+      });
+    });
+
+    it('should return first layer and metric validation message', () => {
+      sandbox.stub(satpamStub, 'validate')
+        .onCall(0)
+        .returns({
+          success: false,
+          messages: {
+            metrics: {
+              required: 'This field is required'
+            }
+          }
+        })
+        .onCall(1)
+        .returns({
+          success: false,
+          messages: {
+            b: 'b'
+          }
+        });
+
+      expect(Orchestrator.validateMetricSpecification({
+        metrics: [{}]
+      })).to.be.deep.equal({
+        metrics: {
+          required: 'This field is required',
+          elementOfArray: {
+            0: {
+              b: 'b'
+            }
+          }
+        }
+      });
+    });
+  });
+
+  describe('validateQueueSpecification', () => {
     it('should return first layer validation message', () => {
       sandbox.stub(satpamStub, 'validate')
         .returns({
@@ -178,7 +257,9 @@ describe('Orchestrator', () => {
       sandbox.stub(MetricStub, 'validateMetricConfig')
         .returns({});
 
-      expect(Orchestrator.validateSpecification({
+      orchestrator = new Orchestrator({});
+
+      expect(orchestrator.validateQueueSpecification({
         metrics: [{}, {}, {}]
       })).to.be.deep.equal({
         a: 'a'
@@ -201,7 +282,9 @@ describe('Orchestrator', () => {
           b: 'b'
         });
 
-      expect(Orchestrator.validateSpecification({
+      orchestrator = new Orchestrator({});
+
+      expect(orchestrator.validateQueueSpecification({
         metrics: [{}]
       })).to.be.deep.equal({
         metrics: {
@@ -305,18 +388,76 @@ describe('Orchestrator', () => {
     });
   });
 
+  describe('registerMetric', () => {
+    it('should throw DuplicateMetricDeclarationError', () => {
+      sandbox.stub(MetricStub, 'getPromMetric')
+        .returns(new CounterStub());
+
+      orchestrator = new Orchestrator({});
+
+      orchestrator.registerMetric({
+        name: 'counter',
+        help: 'counter_help',
+        type: MetricType.Counter
+      });
+
+      expect(orchestrator.registerMetric.bind(orchestrator, {
+        name: 'counter',
+        help: 'counter_help',
+        type: MetricType.Counter
+      })).to.throw(DuplicateMetricDeclarationErrorStub);
+    });
+
+    it('should success', () => {
+      sandbox.stub(MetricStub, 'getPromMetric')
+        .returns(new CounterStub());
+
+      orchestrator = new Orchestrator({});
+
+      orchestrator.registerMetric({
+        name: 'counter',
+        help: 'counter_help',
+        type: MetricType.Counter
+      });
+
+      expect(orchestrator.metricByName).to.have.property('counter');
+    });
+  });
+
+  describe('register', () => {
+    it('should success', async () => {
+      const registerMetricsStub = sandbox.stub(Orchestrator.prototype, 'registerMetrics');
+      const registerQueuesStub = sandbox.stub(Orchestrator.prototype, 'registerQueues');
+
+      orchestrator = new Orchestrator({});
+
+      await orchestrator.register({});
+
+      expect(registerMetricsStub.args.length).to.be.equal(1);
+      expect(registerQueuesStub.args.length).to.be.equal(1);
+    });
+  });
+
   describe('startQueues', () => {
     it('should poll every queue in queue collection', async () => {
       const awsPollStub = sandbox.stub(AWSQueueStub.prototype, 'poll');
       const pubsubPollStub = sandbox.stub(GooglePubSubStub.prototype, 'poll');
+      sandbox.stub(Orchestrator.prototype, 'getQueue')
+        .onCall(0)
+        .returns(new AWSQueueStub())
+        .onCall(1)
+        .returns(new AWSQueueStub())
+        .onCall(2)
+        .returns(new GooglePubSubStub())
+        .onCall(3)
+        .returns(new GooglePubSubStub());
 
       orchestrator = new Orchestrator({});
-      orchestrator.queues = [
-        new AWSQueueStub(),
-        new AWSQueueStub(),
-        new GooglePubSubStub(),
-        new GooglePubSubStub()
-      ];
+
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
 
       await orchestrator.startQueues();
 
@@ -330,16 +471,23 @@ describe('Orchestrator', () => {
         .usingPromise(Bluebird)
         .rejects(new Error());
       const errorStub = sandbox.stub(LoggerStub.prototype, 'error');
+      const stopQueuesStub = sandbox.stub(Orchestrator.prototype, 'stopQueues');
+      sandbox.stub(Orchestrator.prototype, 'getQueue')
+        .onCall(0)
+        .returns(new AWSQueueStub())
+        .onCall(1)
+        .returns(new AWSQueueStub())
+        .onCall(2)
+        .returns(new GooglePubSubStub())
+        .onCall(3)
+        .returns(new GooglePubSubStub());
 
       orchestrator = new Orchestrator({});
-      orchestrator.queues = [
-        new AWSQueueStub(),
-        new AWSQueueStub(),
-        new GooglePubSubStub(),
-        new GooglePubSubStub()
-      ];
 
-      const stopQueuesStub = sandbox.stub(orchestrator, 'stopQueues');
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
 
       let error;
 
@@ -359,13 +507,16 @@ describe('Orchestrator', () => {
     it('should stop all queues', async () => {
       const awsCloseStub = sandbox.stub(AWSQueueStub.prototype, 'close');
       const pubsubCloseStub = sandbox.stub(GooglePubSubStub.prototype, 'close');
+      sandbox.stub(Orchestrator.prototype, 'getQueue')
+        .onCall(0)
+        .returns(new AWSQueueStub())
+        .onCall(1)
+        .returns(new GooglePubSubStub());
 
       orchestrator = new Orchestrator({});
 
-      orchestrator.queues = [
-        new AWSQueueStub(),
-        new GooglePubSubStub()
-      ];
+      orchestrator.registerQueue({});
+      orchestrator.registerQueue({});
 
       await orchestrator.stopQueues();
 
@@ -374,7 +525,97 @@ describe('Orchestrator', () => {
     });
   });
 
-  describe('register', () => {
+  describe('registerMetrics', () => {
+    it('should return error message from specification validations', async () => {
+      sandbox.stub(Orchestrator, 'getAllSpecificationsFromPaths')
+        .returns([
+          {
+            filePath: '1',
+            metrics: [
+              {
+                name: 'counter_1'
+              }
+            ]
+          },
+          {
+            filePath: '2',
+            metrics: [
+              {
+                name: 'counter_2'
+              }
+            ]
+          }
+        ]);
+      sandbox.stub(Orchestrator, 'validateMetricSpecification')
+        .onCall(0)
+        .returns({})
+        .onCall(1)
+        .returns({
+          b: 'b'
+        });
+      sandbox.stub(Orchestrator.prototype, 'registerMetric');
+
+      orchestrator = new Orchestrator({});
+
+      let error;
+
+      try {
+        await orchestrator.registerMetrics({});
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error).to.be.instanceOf(ValidationErrorStub);
+      expect(error.options).to.be.deep.equal({
+        messages: [
+          {
+            filePath: '2',
+            message: {
+              b: 'b'
+            }
+          }
+        ]
+      })
+    });
+
+    it('should register metrics for each specifications', async () => {
+      sandbox.stub(Orchestrator, 'getAllSpecificationsFromPaths')
+        .returns([
+          {
+            filePath: '1',
+            metrics: [
+              {
+                name: 'counter_1'
+              }
+            ]
+          },
+          {
+            filePath: '2',
+            metrics: [
+              {
+                name: 'counter_2'
+              }
+            ]
+          }
+        ]);
+      sandbox.stub(Orchestrator, 'validateMetricSpecification');
+      const registerMetricStub = sandbox.stub(Orchestrator.prototype, 'registerMetric');
+
+      orchestrator = new Orchestrator({});
+
+      await orchestrator.registerMetrics({});
+
+      expect(registerMetricStub.args.length).to.be.equal(2);
+      expect(registerMetricStub.args[0][0]).to.be.deep.equal({
+        name: 'counter_1'
+      });
+      expect(registerMetricStub.args[1][0]).to.be.deep.equal({
+        name: 'counter_2'
+      });
+    });
+  });
+
+  describe('registerQueues', () => {
     it('should return error message from credential validation', async () => {
       sandbox.stub(Orchestrator, 'getAllSpecificationsFromPaths')
         .returns([
@@ -385,7 +626,7 @@ describe('Orchestrator', () => {
             filePath: '2'
           }
         ]);
-      sandbox.stub(Orchestrator, 'validateSpecification')
+      sandbox.stub(Orchestrator.prototype, 'validateQueueSpecification')
         .returns({
           b: 'b'
         });
@@ -400,7 +641,7 @@ describe('Orchestrator', () => {
       let error;
 
       try {
-        await orchestrator.register({});
+        await orchestrator.registerQueues({});
       } catch (e) {
         error = e;
       }
@@ -423,7 +664,7 @@ describe('Orchestrator', () => {
             filePath: '2'
           }
         ]);
-      sandbox.stub(Orchestrator, 'validateSpecification')
+      sandbox.stub(Orchestrator.prototype, 'validateQueueSpecification')
         .onCall(0)
         .returns({})
         .onCall(1)
@@ -439,7 +680,7 @@ describe('Orchestrator', () => {
       let error;
 
       try {
-        await orchestrator.register({});
+        await orchestrator.registerQueues({});
       } catch (e) {
         error = e;
       }
@@ -467,14 +708,14 @@ describe('Orchestrator', () => {
             filePath: '2'
           }
         ]);
-      sandbox.stub(Orchestrator, 'validateSpecification');
+      sandbox.stub(Orchestrator.prototype, 'validateQueueSpecification');
       sandbox.stub(Orchestrator, 'extractServiceNamesFromSpecifications');
       sandbox.stub(Orchestrator.prototype, 'validateCredential');
       const registerQueueStub = sandbox.stub(Orchestrator.prototype, 'registerQueue');
 
       orchestrator = new Orchestrator({});
 
-      await orchestrator.register({});
+      await orchestrator.registerQueues({});
 
       expect(registerQueueStub.args.length).to.be.equal(2);
       expect(registerQueueStub.args[0][0]).to.be.deep.equal({
@@ -503,7 +744,7 @@ describe('Orchestrator', () => {
 
       orchestrator = new Orchestrator({});
 
-      await orchestrator.start('1234', 'https://google.com');
+      await orchestrator.start(1234, 'https://google.com');
 
       expect(listenStub.args.length).to.be.equal(1);
       expect(sendStub.args.length).to.be.equal(1);

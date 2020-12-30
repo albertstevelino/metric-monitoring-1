@@ -1,13 +1,13 @@
 import { Observable } from 'rxjs';
 
-import QueueConfig = require('../interface/queue-config');
-import PollConfig = require('../interface/poll-config');
+import QueueConfig from '../interface/queue-config';
+import PollConfig from '../interface/poll-config';
 
-import QueueService = require('../enum/queue-service');
+import QueueService from '../enum/queue-service';
 
 import MessageQueue from './message-queue';
 import Metric from '../metric/metric';
-import Logger = require('../common/logger');
+import Logger from '../common/logger';
 
 abstract class Queue {
   /**
@@ -39,6 +39,7 @@ abstract class Queue {
     for (const metricConfig of config.metricConfigs) {
       const metric = new Metric({
         ...metricConfig,
+        metricByName: config.metricByName,
         logger: this.logger
       });
 

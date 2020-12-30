@@ -1,9 +1,5 @@
-import MetricType from '../enum/metric-type';
-
 interface MetricConfig {
   name: string,
-  help: string,
-  type: MetricType,
   valueModifier: {
     increase?: {
       constant?: number
@@ -18,10 +14,8 @@ interface MetricConfig {
       path?: string
     }
   },
-  label?: {
-    [key: string]: {
-      path: string
-    }
+  labelPath?: {
+    [key: string]: string
   }
 }
 
