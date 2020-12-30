@@ -216,8 +216,13 @@ class Metric {
     };
   }
 
-  constructor(config: MetricConfig & { promMetric: Counter<any>|Gauge<any>, logger: Logger }) {
-    this.promMetric = config.promMetric;
+  constructor(config: MetricConfig & {
+    metricByName: {
+      [key: string]: Counter<any>|Gauge<any>
+    },
+    logger: Logger
+  }) {
+    this.promMetric = config.metricByName[config.name];
 
     this.labelToPath = _.pick(config.labelPath, _.get(this.promMetric, 'labelNames'));
     this.operations = [];

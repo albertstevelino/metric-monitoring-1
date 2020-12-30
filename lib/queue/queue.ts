@@ -39,7 +39,7 @@ abstract class Queue {
     for (const metricConfig of config.metricConfigs) {
       const metric = new Metric({
         ...metricConfig,
-        promMetric: config.metricByName[metricConfig.name],
+        metricByName: config.metricByName,
         logger: this.logger
       });
 

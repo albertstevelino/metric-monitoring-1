@@ -597,13 +597,15 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        type: MetricType.Counter,
+        name: 'counter',
         logger: new LoggerStub(console),
-        promMetric: new CounterStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a', 'c']
-        })
+        metricByName: {
+          counter: new CounterStub({
+            name: 'counter',
+            help: 'counter_help',
+            labelNames: ['a', 'c']
+          })
+        }
       });
 
       expect(metric.operations.length).to.be.equal(1);
@@ -630,13 +632,15 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        type: MetricType.Gauge,
+        name: 'counter',
         logger: new LoggerStub(console),
-        promMetric: new GaugeStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a']
-        })
+        metricByName: {
+          counter: new GaugeStub({
+            name: 'counter',
+            help: 'counter_help',
+            labelNames: ['a']
+          })
+        }
       });
 
       expect(metric.operations.length).to.be.equal(3);
@@ -655,13 +659,15 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        type: MetricType.Gauge,
+        name: 'counter',
         logger: new LoggerStub(console),
-        promMetric: new GaugeStub({
-          name: 'counter',
-          help: 'counter_help',
-          labelNames: ['a']
-        })
+        metricByName: {
+          counter: new GaugeStub({
+            name: 'counter',
+            help: 'counter_help',
+            labelNames: ['a']
+          })
+        }
       });
 
       expect(metric.operations.length).to.be.equal(1);
@@ -689,16 +695,19 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        promMetric: new GaugeStub({
-          name: 'gauge',
-          help: 'gauge_help',
-          labelNames: ['a', 'c']
-        }),
+        metricByName: {
+          gauge: new GaugeStub({
+            name: 'gauge',
+            help: 'gauge_help',
+            labelNames: ['a', 'c']
+          })
+        },
         logger,
         labelPath: {
           a: 'a.b',
           c: 'c.d'
-        }
+        },
+        name: 'gauge'
       });
 
       const content = {
@@ -760,11 +769,14 @@ describe('Metric', () => {
             constant: 1
           }
         },
-        promMetric: new GaugeStub({
-          name: 'gauge',
-          help: 'gauge_help',
-          labelNames: []
-        }),
+        name: 'gauge',
+        metricByName: {
+          gauge: new GaugeStub({
+            name: 'gauge',
+            help: 'gauge_help',
+            labelNames: []
+          })
+        },
         logger
       });
 
