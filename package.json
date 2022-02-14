@@ -25,7 +25,7 @@
     "nyc": "~15.1.0"
   },
   "dependencies": {
-    "@google-cloud/pubsub": "~2.6.0",
+    "@google-cloud/pubsub": "2.18.5",
     "async": "~2.5.0",
     "aws-sdk": "~2.794.0",
     "bluebird": "~3.7.2",
